@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f0f0f" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Birlikteliğimiz" />
+  <title>Birlikteliğimiz</title>
+
+  <!-- Favicon & ikonlar -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+
+
+  <!-- PWA Manifest (inline blob — tek dosya çalışması için) -->
+  <script>
+    const manifestData = {
+      name: "Birlikteliğimiz",
+      short_name: "Birlikteliğimiz",
+      description: "İlişki sayacımız",
+      start_url: "./",
+      display: "standalone",
+      background_color: "#0f0f0f",
+      theme_color: "#0f0f0f",
+      orientation: "portrait",
+      icons: [
+        { src: "web-app-manifest-192x192.png", sizes: "192x192", type: "image/png" },
+        { src: "web-app-manifest-512x512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" }
+      ]
+    };
+    const blob = new Blob([JSON.stringify(manifestData)], { type: "application/json" });
+    const manifestURL = URL.createObjectURL(blob);
+    const link = document.createElement("link");
+    link.rel = "manifest";
+    link.href = manifestURL;
+    document.head.appendChild(link);
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,600;0,800;1,800&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ──────────────────────────────────────────────
+       KISMI DEĞİŞKENLER (renk, timing)
+    ────────────────────────────────────────────── */
+    :root {
+      --white: #ffffff;
+      --white80: rgba(255,255,255,0.80);
+      --white50: rgba(255,255,255,0.50);
+      --accent: #f5c5d0;          /* pastel pembe aksan */
+      --shadow-soft: 0 2px 18px rgba(0,0,0,0.55), 0 1px 4px rgba(0,0,0,0.3);
+      --shadow-text: 0 1px 12px rgba(0,0,0,0.7), 0 0 4px rgba(0,0,0,0.4);
+      --font: 'Plus Jakarta Sans', sans-serif;
+      --phone-w: 390px;
+      --phone-h: 844px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: #111;
+      font-family: var(--font);
+      overscroll-behavior: none;
+    }
+
+    /* ──────────────────────────────────────────────
+       MASAÜSTÜ: TELEFON MOCKUP + BLUR ARKA PLAN
+    ────────────────────────────────────────────── */
+    .desktop-bg {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      filter: blur(28px) brightness(0.45) saturate(0.7);
+      transform: scale(1.08); /* blur kenar taşmasını gizle */
+      z-index: 0;
+    }
+
+    .desktop-shell {
+      display: none;
+      position: fixed;
+      inset: 0;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+    }
+
+    @media (min-width: 600px) {
+      .desktop-bg  { display: block; }
+      .desktop-shell { display: flex; }
+    }
+
+    .phone-frame {
+      width: var(--phone-w);
+      height: var(--phone-h);
+      border-radius: 48px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.08);
+    }
+
+    /* ──────────────────────────────────────────────
+       ANA UYGULAMA KAPSAYICI
+    ────────────────────────────────────────────── */
+    .app {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+
+    /* Mobilde app doğrudan body'yi kaplar */
+    @media (max-width: 599px) {
+      .desktop-shell { display: block; position: static; }
+      .phone-frame {
+        width: 100vw;
+        height: 100dvh;
+        border-radius: 0;
+        box-shadow: none;
+      }
+    }
+
+    /* ──────────────────────────────────────────────
+       KEN BURNS ARKA PLAN
+    ────────────────────────────────────────────── */
+    .bg-layer {
+      position: absolute;
+      inset: -8%;          /* yakınlaşma için gizli boşluk */
+      background-size: cover;
+      background-position: center;
+      will-change: transform;
+      animation: kenburns 30s ease-in-out infinite alternate;
+    }
+
+    @keyframes kenburns {
+      from { transform: scale(1)    translate(0%, 0%); }
+      to   { transform: scale(1.12) translate(-2%, -2%); }
+    }
+
+    /* ──────────────────────────────────────────────
+       İÇERİK ALANI
+    ────────────────────────────────────────────── */
+    .content {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;   /* alt 1/3'e yasla */
+      padding: 0 28px env(safe-area-inset-bottom, 36px) 28px;
+      padding-bottom: max(36px, env(safe-area-inset-bottom));
+    }
+
+    /* ──────────────────────────────────────────────
+       1. ANA SAYAÇ — sol yaslı, bold italic
+    ────────────────────────────────────────────── */
+    .main-counter {
+      align-self: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .main-counter .days-num {
+      display: block;
+      font-size: clamp(64px, 18vw, 96px);
+      font-weight: 800;
+      font-style: italic;
+      line-height: 0.92;
+      color: var(--white);
+      text-shadow: var(--shadow-text);
+      letter-spacing: -2px;
+    }
+
+    .main-counter .days-label {
+      display: block;
+      font-size: clamp(13px, 3.5vw, 17px);
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--white80);
+      text-shadow: var(--shadow-text);
+      margin-top: 4px;
+    }
+
+    /* ──────────────────────────────────────────────
+       2. DETAYLI CANLI SAYAÇ — sağ yaslı, zarif
+    ────────────────────────────────────────────── */
+    .live-counter {
+      align-self: flex-end;
+      text-align: right;
+      margin-bottom: 20px;
+    }
+
+    .live-counter .live-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: flex-end;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .live-counter .unit-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .live-counter .unit-val {
+      font-size: clamp(17px, 5vw, 24px);
+      font-weight: 300;
+      color: var(--white);
+      text-shadow: var(--shadow-text);
+      line-height: 1;
+      min-width: 1.6ch;
+    }
+
+    .live-counter .unit-label {
+      font-size: clamp(8px, 2vw, 10px);
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--white50);
+      text-shadow: var(--shadow-text);
+      margin-top: 2px;
+    }
+
+    .live-counter .sep {
+      font-size: clamp(17px, 5vw, 24px);
+      font-weight: 300;
+      color: var(--white50);
+      text-shadow: var(--shadow-text);
+      padding-bottom: 2px;
+    }
+
+    /* ──────────────────────────────────────────────
+       3. ÖZEL GÜN UYARI BARI
+    ────────────────────────────────────────────── */
+    .special-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 4px;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+      pointer-events: none;
+    }
+
+    .special-bar.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .special-bar .icon-warn {
+      flex-shrink: 0;
+      filter: drop-shadow(0 1px 4px rgba(0,0,0,0.6));
+    }
+
+    /* El çizimi / sketch çerçeve */
+    .special-bar .sketch-box {
+      flex: 1;
+      position: relative;
+      padding: 10px 14px;
+      color: var(--white);
+      font-size: clamp(11px, 3vw, 14px);
+      font-weight: 600;
+      line-height: 1.3;
+      text-shadow: var(--shadow-text);
+    }
+
+    /* SVG sketch border — çizgi aralıklı, köşeler bozuk */
+    .special-bar .sketch-box::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.06);
+      backdrop-filter: blur(4px);
+    }
+
+    .special-bar .sketch-box svg.border-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    .special-bar .sketch-box .box-text {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ──────────────────────────────────────────────
+       REDUCED MOTION
+    ────────────────────────────────────────────── */
+    @media (prefers-reduced-motion: reduce) {
+      .bg-layer { animation: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Masaüstü bulanık arka plan -->
+<div class="desktop-bg" id="desktopBg"></div>
+
+<!-- Telefon kabuk (masaüstünde çerçeve, mobilde tam ekran) -->
+<div class="desktop-shell">
+  <div class="phone-frame">
+    <div class="app" id="app">
+
+      <!-- Ken Burns arka plan -->
+      <div class="bg-layer" id="bgLayer"></div>
+
+      <!-- İçerik -->
+      <div class="content">
+
+        <!-- 1. Ana sayaç -->
+        <div class="main-counter">
+          <span class="days-num" id="daysNum">0</span>
+          <span class="days-label">Gündür Beraberiz</span>
+        </div>
+
+        <!-- 2. Canlı detaylı sayaç -->
+        <div class="live-counter">
+          <div class="live-row" id="liveRow">
+            <!-- JS tarafından doldurulur -->
+          </div>
+        </div>
+
+        <!-- 3. Özel gün uyarı barı -->
+        <div class="special-bar" id="specialBar">
+          <!-- Üçgen ünlem ikonu (SVG) -->
+          <svg class="icon-warn" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16 3L30 28H2L16 3Z" fill="rgba(255,220,100,0.18)" stroke="#FFD84A" stroke-width="1.8" stroke-linejoin="round"/>
+            <rect x="15" y="13" width="2" height="8" rx="1" fill="#FFD84A"/>
+            <circle cx="16" cy="24" r="1.2" fill="#FFD84A"/>
+          </svg>
+          <!-- Sketch çerçeveli kutu -->
+          <div class="sketch-box" id="sketchBox">
+            <svg class="border-svg" id="sketchBorder" viewBox="0 0 200 50" preserveAspectRatio="none">
+              <rect x="1" y="1" width="198" height="48" rx="5" ry="5"
+                fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="1.4"
+                stroke-dasharray="6 3"
+                pathLength="100"
+                style="stroke-dashoffset: 0;" />
+            </svg>
+            <span class="box-text" id="specialText">…</span>
+          </div>
+        </div>
+
+      </div><!-- /content -->
+    </div><!-- /app -->
+  </div><!-- /phone-frame -->
+</div><!-- /desktop-shell -->
+
+<script>
+/* ================================================================
+   ░░  KULLANICI AYARLARI — BURADAN DEĞİŞTİR  ░░
+   ================================================================ */
+
+// İlişki başlangıç tarihi (ISO 8601 formatı: YYYY-MM-DD)
+const BASLANGIC_TARIHI = "2023-06-15";   // ← kendi tarihinle değiştir
+
+/* Özel günler dizisi.
+   Her obje: { ad: "...", ay: 1-12, gun: 1-31 }
+   Yıl dönümü için ay ve günü gir, yıl her yıl otomatik hesaplanır.
+   Doğum günü için de aynı format geçerli.                         */
+const OZEL_GUNLER = [
+  { ad: "Yıl Dönümümüz",         ay: 6,  gun: 15 },
+  { ad: "Senin Doğum Günün",     ay: 3,  gun: 22 },  // ← değiştir
+  { ad: "Benim Doğum Günüm",     ay: 9,  gun: 8  },  // ← değiştir
+  { ad: "Sevgililer Günümüz",    ay: 2,  gun: 14 },
+];
+
+// Kaç gün kala uyarı gösterilsin?
+const UYARI_ESIGI_GUN = 15;
+
+/* Arka plan fotoğrafları photos.json dosyasından okunur.
+   Fotoğraf ekleyip çıkardığında sadece photos.json'u güncelle,
+   index.html'e dokunmana gerek yok.                          */
+const FALLBACK_BG = "linear-gradient(160deg, #1a0a0f 0%, #3d1c2e 50%, #1a0a0f 100%)";
+
+/* ================================================================
+   ░░  MANTIK  ░░
+   ================================================================ */
+
+// ── Arka plan seç (photos.json'dan dinamik okuma)
+function applyBg(pool) {
+  const bgLayer   = document.getElementById("bgLayer");
+  const desktopBg = document.getElementById("desktopBg");
+  if (!pool || pool.length === 0) {
+    bgLayer.style.background = FALLBACK_BG;
+    desktopBg.style.background = FALLBACK_BG;
+    return;
+  }
+  const chosen = pool[Math.floor(Math.random() * pool.length)];
+  bgLayer.style.backgroundImage = `url('${chosen}')`;
+  bgLayer.style.backgroundSize  = "cover";
+  bgLayer.style.backgroundPosition = "center";
+  desktopBg.style.backgroundImage  = `url('${chosen}')`;
+}
+
+async function setBg() {
+  try {
+    const res  = await fetch("photos.json?v=" + Date.now());
+    const pool = await res.json();          // ["bg1.jpg", "bg2.jpg", ...]
+    applyBg(pool);
+  } catch {
+    applyBg([]);   // photos.json yoksa fallback
+  }
+}
+
+// ── Zaman farkı hesapla
+function timeDiff(from, to) {
+  let ms = to - from;
+  const s  = Math.floor(ms / 1000) % 60;
+  const m  = Math.floor(ms / 60000) % 60;
+  const h  = Math.floor(ms / 3600000) % 24;
+  // gün, ay, yıl için tarih aritmetiği
+  const d1 = new Date(from), d2 = new Date(to);
+  let yil = d2.getFullYear() - d1.getFullYear();
+  let ay  = d2.getMonth()   - d1.getMonth();
+  let gun = d2.getDate()    - d1.getDate();
+  if (gun < 0) { ay--; const prev = new Date(d2.getFullYear(), d2.getMonth(), 0); gun += prev.getDate(); }
+  if (ay  < 0) { yil--; ay += 12; }
+  const toplamGun = Math.floor((to - from) / 86400000);
+  return { yil, ay, gun, h, m, s, toplamGun };
+}
+
+// ── Canlı sayaç DOM
+function buildLiveRow(diff) {
+  const units = [
+    { val: diff.yil, label: "Yıl"    },
+    { val: diff.ay,  label: "Ay"     },
+    { val: diff.gun, label: "Gün"    },
+    { val: diff.h,   label: "Saat"   },
+    { val: diff.m,   label: "Dak"    },
+    { val: diff.s,   label: "Sn"     },
+  ];
+  const row = document.getElementById("liveRow");
+  row.innerHTML = "";
+  units.forEach((u, i) => {
+    const block = document.createElement("div");
+    block.className = "unit-block";
+    block.innerHTML = `<span class="unit-val">${String(u.val).padStart(2,"0")}</span>
+                       <span class="unit-label">${u.label}</span>`;
+    row.appendChild(block);
+    if (i < units.length - 1) {
+      const sep = document.createElement("span");
+      sep.className = "sep";
+      sep.textContent = ":";
+      row.appendChild(sep);
+    }
+  });
+}
+
+// ── En yakın özel günü bul
+function nearestSpecial() {
+  const now = new Date();
+  let nearest = null, minDays = Infinity;
+  OZEL_GUNLER.forEach(og => {
+    let target = new Date(now.getFullYear(), og.ay - 1, og.gun);
+    if (target < now) target.setFullYear(target.getFullYear() + 1);
+    const days = Math.ceil((target - now) / 86400000);
+    if (days < minDays) { minDays = days; nearest = { ...og, days }; }
+  });
+  return nearest;
+}
+
+// ── Tick
+function tick() {
+  const start = new Date(BASLANGIC_TARIHI);
+  const now   = new Date();
+  const diff  = timeDiff(start, now);
+
+  document.getElementById("daysNum").textContent = diff.toplamGun.toLocaleString("tr-TR");
+  buildLiveRow(diff);
+
+  // Özel gün
+  const sp = nearestSpecial();
+  const bar = document.getElementById("specialBar");
+  if (sp && sp.days <= UYARI_ESIGI_GUN) {
+    document.getElementById("specialText").textContent =
+      `${sp.ad}'na son ${sp.days} gün!`;
+    bar.classList.add("visible");
+  } else {
+    bar.classList.remove("visible");
+  }
+}
+
+// ── Başlat
+setBg();   // async — photos.json'u okur, arka planı ayarlar
+tick();
+setInterval(tick, 1000);
+
+/* ================================================================
+   ░░  SERVICE WORKER (inline blob PWA)  ░░
+   Cache-first strateji; tek dosya için yeterli.
+   ================================================================ */
+if ("serviceWorker" in navigator) {
+  const swCode = `
+const CACHE = "birlikteliğimiz-v1";
+const ASSETS = ["/"];
+
+self.addEventListener("install", e => {
+  e.waitUntil(
+    caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener("activate", e => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener("fetch", e => {
+  e.respondWith(
+    caches.match(e.request).then(cached => cached || fetch(e.request))
+  );
+});
+  `;
+  const swBlob = new Blob([swCode], { type: "text/javascript" });
+  const swURL  = URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swURL, { scope: "./" })
+    .then(() => console.log("[SW] Kayıtlı ✓"))
+    .catch(e  => console.warn("[SW] Kayıt hatası:", e));
+}
+</script>
+</body>
+</html>
