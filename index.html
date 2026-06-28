@@ -367,7 +367,7 @@
    ================================================================ */
 
 // İlişki başlangıç tarihi (ISO 8601 formatı: YYYY-MM-DD)
-const BASLANGIC_TARIHI = "2026-04-18";   // ← kendi tarihinle değiştir
+const BASLANGIC_TARIHI = "2026-04-18T17:15:00"; // başlangıç tarihi ve saati
 
 /* Özel günler dizisi.
    tip seçenekleri:
@@ -425,18 +425,33 @@ async function setBg() {
 
 // ── Zaman farkı hesapla
 function timeDiff(from, to) {
-  let ms = to - from;
-  const s  = Math.floor(ms / 1000) % 60;
-  const m  = Math.floor(ms / 60000) % 60;
-  const h  = Math.floor(ms / 3600000) % 24;
-  // gün, ay, yıl için tarih aritmetiği
-  const d1 = new Date(from), d2 = new Date(to);
+  const ms = to - from;
+
+  // Saat / dakika / saniye — ms bazlı kesin hesap
+  const s = Math.floor(ms / 1000) % 60;
+  const m = Math.floor(ms / 60000) % 60;
+  const h = Math.floor(ms / 3600000) % 24;
+
+  // Yıl / ay / gün — takvim aritmetiği (saat dikkate alınır)
+  const d1 = new Date(from);
+  const d2 = new Date(to);
   let yil = d2.getFullYear() - d1.getFullYear();
   let ay  = d2.getMonth()   - d1.getMonth();
   let gun = d2.getDate()    - d1.getDate();
-  if (gun < 0) { ay--; const prev = new Date(d2.getFullYear(), d2.getMonth(), 0); gun += prev.getDate(); }
-  if (ay  < 0) { yil--; ay += 12; }
-  const toplamGun = Math.floor((to - from) / 86400000);
+
+  // Saati de karşılaştır: bugün henüz o saate ulaşılmadıysa 1 gün geri al
+  const saatGecti = (d2.getHours() * 3600 + d2.getMinutes() * 60 + d2.getSeconds())
+                  >= (d1.getHours() * 3600 + d1.getMinutes() * 60 + d1.getSeconds());
+  if (!saatGecti) gun--;
+
+  if (gun < 0) {
+    ay--;
+    const prevAySon = new Date(d2.getFullYear(), d2.getMonth(), 0);
+    gun += prevAySon.getDate();
+  }
+  if (ay < 0) { yil--; ay += 12; }
+
+  const toplamGun = Math.floor(ms / 86400000);
   return { yil, ay, gun, h, m, s, toplamGun };
 }
 
@@ -572,37 +587,28 @@ setInterval(tick, 1000);
    ░░  SERVICE WORKER (inline blob PWA)  ░░
    Cache-first strateji; tek dosya için yeterli.
    ================================================================ */
-if ("serviceWorker" in navigator) {
-  // Cache versiyonu = index.html'in sunucudaki son değişiklik zamanı.
-  // GitHub'a her yüklemende otomatik değişir, elle bir şey yapman gerekmez.
-  fetch("index.html", { method: "HEAD" })
-    .then(r  => r.headers.get("Last-Modified") || String(Date.now()))
-    .catch(() => String(Date.now()))
-    .then(ver => registerSW(ver));
+// ── Otomatik güncelleme kontrolü
+// Her 5 dakikada bir sunucudaki index.html'in değişip değişmediğini kontrol et.
+// Değişmişse PWA'yı otomatik yenile — SW blob sorunu olmadan çalışır.
+(function autoUpdate() {
+  let lastModified = null;
 
-  function registerSW(ver) {
-    const swText =
-      'const CACHE="birlikteliğimiz-' + ver + '";' +
-      'const ASSETS=["./"];' +
-      'self.addEventListener("install",e=>{' +
-      '  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));' +
-      '});' +
-      'self.addEventListener("activate",e=>{' +
-      '  e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));' +
-      '});' +
-      'self.addEventListener("fetch",e=>{' +
-      '  e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request)));' +
-      '});';
-
-    const blob = new Blob([swText], { type: "text/javascript" });
-    navigator.serviceWorker.register(URL.createObjectURL(blob), { scope: "./" })
-      .then(() => {
-        // Yeni SW devreye girince sayfayı otomatik yenile
-        navigator.serviceWorker.addEventListener("controllerchange", () => window.location.reload());
+  function checkUpdate() {
+    fetch("index.html", { method: "HEAD", cache: "no-store" })
+      .then(r => {
+        const lm = r.headers.get("Last-Modified") || r.headers.get("ETag");
+        if (lastModified === null) {
+          lastModified = lm; // ilk değeri kaydet
+        } else if (lm && lm !== lastModified) {
+          window.location.reload(); // değişti → yenile
+        }
       })
-      .catch(e => console.warn("[SW] Hata:", e));
+      .catch(() => {}); // offline ise sessizce geç
   }
-}
+
+  checkUpdate(); // hemen bir kez çalıştır
+  setInterval(checkUpdate, 30 * 1000); // sonra her 30 saniyede bir
+})();
 </script>
 </body>
 </html>
