@@ -377,7 +377,7 @@ const BASLANGIC_TARIHI = "2026-04-18";   // ← kendi tarihinle değiştir
    Ay dönümleri ayrıca ekleme yapmana gerek yok, otomatik hesaplanır. */
 const OZEL_GUNLER = [
   { tip: "yildonumu", ad: "Yıl Dönümümüz",       ay: 4,  gun: 18 },
-  { tip: "dogumgunu", ad: "Hatun'un Doğum Günü", ay: 6, gun: 28  },
+  { tip: "dogumgunu", ad: "Hatun'un Doğum Günü", ay: 11, gun: 6  },
   { tip: "dogumgunu", ad: "Bey'in Doğum Günü",   ay: 11, gun: 8  },
   { tip: "ozel",      ad: "Sevgililer Günümüz",   ay: 2,  gun: 14 },
 ];
@@ -482,24 +482,24 @@ function mesajUret(og, days) {
   if (days === 0) {
     if (og.tip === "yildonumu") {
       const yilSayisi = now.getFullYear() - baslangic.getFullYear();
-      return `${yilSayisi}. Yıl Dönümümüz kutlu olsun yavrum, Nicelerimize! `;
+      return `${yilSayisi}. Yıl Dönümümüz kutlu olsun yavrum, Nicelerimize! 💕`;
     }
-    if (og.tip === "dogumgunu") return `${og.ad} kutlu olsun, Nicelerimize! `;
-    return `${og.ad} kutlu olsun, Nicelerimize! `;
+    if (og.tip === "dogumgunu") return `${og.ad} kutlu olsun, Nicelerimize! 💕`;
+    return `${og.ad} kutlu olsun, Nicelerimize! 💕`;
   }
   if (og.tip === "yildonumu") {
     const hedefYil = new Date(now.getFullYear(), og.ay - 1, og.gun);
     const yilSayisi = hedefYil.getFullYear() - baslangic.getFullYear();
-    return `${yilSayisi}. Yıl Dönümümüz'e son ${days} gün! `;
+    return `${yilSayisi}. Yıl Dönümümüz'e son ${days} gün! 🗓️`;
   }
-  if (og.tip === "dogumgunu") return `${og.ad}'ne son ${days} gün! `;
-  return `${og.ad}'na son ${days} gün! `;
+  if (og.tip === "dogumgunu") return `${og.ad}'ne son ${days} gün! 🗓️`;
+  return `${og.ad}'na son ${days} gün! 🗓️`;
 }
 
 // ── Ay dönümü mesajı üret
 function ayDonumuMesaj(ayNo, days) {
-  if (days === 0) return `${ayNo}. Ay Dönümümüz kutlu olsun sevgilim, Nicelerimize! `;
-  return `${ayNo}. Ay Dönümümüz'e son ${days} gün! `;
+  if (days === 0) return `${ayNo}. Ay Dönümümüz kutlu olsun sevgilim, Nicelerimize! 💕`;
+  return `${ayNo}. Ay Dönümümüz'e son ${days} gün! 🗓️`;
 }
 
 // ── En yakın özel günü bul (ay dönümleri dahil)
@@ -573,35 +573,35 @@ setInterval(tick, 1000);
    Cache-first strateji; tek dosya için yeterli.
    ================================================================ */
 if ("serviceWorker" in navigator) {
-  const swCode = `
-const CACHE = "birlikteliğimiz-v1";
-const ASSETS = ["/"];
+  // Cache versiyonu = index.html'in sunucudaki son değişiklik zamanı.
+  // GitHub'a her yüklemende otomatik değişir, elle bir şey yapman gerekmez.
+  fetch("index.html", { method: "HEAD" })
+    .then(r  => r.headers.get("Last-Modified") || String(Date.now()))
+    .catch(() => String(Date.now()))
+    .then(ver => registerSW(ver));
 
-self.addEventListener("install", e => {
-  e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())
-  );
-});
+  function registerSW(ver) {
+    const swText =
+      'const CACHE="birlikteliğimiz-' + ver + '";' +
+      'const ASSETS=["./"];' +
+      'self.addEventListener("install",e=>{' +
+      '  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));' +
+      '});' +
+      'self.addEventListener("activate",e=>{' +
+      '  e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));' +
+      '});' +
+      'self.addEventListener("fetch",e=>{' +
+      '  e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request)));' +
+      '});';
 
-self.addEventListener("activate", e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  );
-});
-
-self.addEventListener("fetch", e => {
-  e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
-  );
-});
-  `;
-  const swBlob = new Blob([swCode], { type: "text/javascript" });
-  const swURL  = URL.createObjectURL(swBlob);
-  navigator.serviceWorker.register(swURL, { scope: "./" })
-    .then(() => console.log("[SW] Kayıtlı ✓"))
-    .catch(e  => console.warn("[SW] Kayıt hatası:", e));
+    const blob = new Blob([swText], { type: "text/javascript" });
+    navigator.serviceWorker.register(URL.createObjectURL(blob), { scope: "./" })
+      .then(() => {
+        // Yeni SW devreye girince sayfayı otomatik yenile
+        navigator.serviceWorker.addEventListener("controllerchange", () => window.location.reload());
+      })
+      .catch(e => console.warn("[SW] Hata:", e));
+  }
 }
 </script>
 </body>
