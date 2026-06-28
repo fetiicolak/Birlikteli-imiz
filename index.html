@@ -370,15 +370,20 @@
 const BASLANGIC_TARIHI = "2026-04-18";   // ← kendi tarihinle değiştir
 
 /* Özel günler dizisi.
-   Her obje: { ad: "...", ay: 1-12, gun: 1-31 }
-   Yıl dönümü için ay ve günü gir, yıl her yıl otomatik hesaplanır.
-   Doğum günü için de aynı format geçerli.                         */
+   tip seçenekleri:
+     "yildonumu" → "X. Yıl Dönümümüz kutlu olsun! 🎉"
+     "dogumgunu" → "Doğum Günün kutlu olsun! 🎂"
+     "ozel"      → "X kutlu olsun! 🎊"
+   Ay dönümleri ayrıca ekleme yapmana gerek yok, otomatik hesaplanır. */
 const OZEL_GUNLER = [
-  { ad: "Yıl Dönümümüz",         ay: 4,  gun: 18 },
-  { ad: "Hatun'un Doğum Günün ",     ay: 11,  gun: 6 },  // ← değiştir
-  { ad: "Bey'in Doğum Günün",     ay: 11,  gun: 8  },  // ← değiştir
-  { ad: "Sevgililer Günümüz",    ay: 2,  gun: 14 },
+  { tip: "yildonumu", ad: "Yıl Dönümümüz",       ay: 4,  gun: 18 },
+  { tip: "dogumgunu", ad: "Hatun'un Doğum Günü", ay: 11, gun: 6  },
+  { tip: "dogumgunu", ad: "Bey'in Doğum Günü",   ay: 11, gun: 8  },
+  { tip: "ozel",      ad: "Sevgililer Günümüz",   ay: 2,  gun: 14 },
 ];
+
+// Ay dönümleri her ay otomatik hesaplanır (BASLANGIC_TARIHI baz alınır)
+const AY_DONUMU_AKTIF = true;
 
 // Kaç gün kala uyarı gösterilsin?
 const UYARI_ESIGI_GUN = 15;
@@ -462,16 +467,79 @@ function buildLiveRow(diff) {
   });
 }
 
-// ── En yakın özel günü bul
-function nearestSpecial() {
+// ── Gün farkını temiz hesapla (gece yarısından itibaren)
+function gunFarki(hedef) {
+  const now   = new Date();
+  const bugun = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const h     = new Date(hedef.getFullYear(), hedef.getMonth(), hedef.getDate());
+  return Math.round((h - bugun) / 86400000);
+}
+
+// ── Özel gün mesajı üret
+function mesajUret(og, days) {
+  const baslangic = new Date(BASLANGIC_TARIHI);
   const now = new Date();
-  let nearest = null, minDays = Infinity;
+  if (days === 0) {
+    if (og.tip === "yildonumu") {
+      const yilSayisi = now.getFullYear() - baslangic.getFullYear();
+      return `${yilSayisi}. Yıl Dönümümüz kutlu olsun yavrum, Nicelerimize! `;
+    }
+    if (og.tip === "dogumgunu") return `${og.ad} kutlu olsun, Nicelerimize! `;
+    return `${og.ad} kutlu olsun, Nicelerimize! `;
+  }
+  if (og.tip === "yildonumu") {
+    const hedefYil = new Date(now.getFullYear(), og.ay - 1, og.gun);
+    const yilSayisi = hedefYil.getFullYear() - baslangic.getFullYear();
+    return `${yilSayisi}. Yıl Dönümümüz'e son ${days} gün! `;
+  }
+  if (og.tip === "dogumgunu") return `${og.ad}'ne son ${days} gün! `;
+  return `${og.ad}'na son ${days} gün! `;
+}
+
+// ── Ay dönümü mesajı üret
+function ayDonumuMesaj(ayNo, days) {
+  if (days === 0) return `${ayNo}. Ay Dönümümüz kutlu olsun sevgilim, Nicelerimize! `;
+  return `${ayNo}. Ay Dönümümüz'e son ${days} gün! `;
+}
+
+// ── En yakın özel günü bul (ay dönümleri dahil)
+function nearestSpecial() {
+  const now       = new Date();
+  const baslangic = new Date(BASLANGIC_TARIHI);
+  let nearest     = null;
+  let minDays     = Infinity;
+
+  // 1. OZEL_GUNLER listesi
   OZEL_GUNLER.forEach(og => {
     let target = new Date(now.getFullYear(), og.ay - 1, og.gun);
-    if (target < now) target.setFullYear(target.getFullYear() + 1);
-    const days = Math.ceil((target - now) / 86400000);
-    if (days < minDays) { minDays = days; nearest = { ...og, days }; }
+    if (gunFarki(target) < 0) target.setFullYear(target.getFullYear() + 1);
+    const days = gunFarki(target);
+    if (days <= UYARI_ESIGI_GUN && days < minDays) {
+      minDays = days;
+      nearest = { mesaj: mesajUret(og, days), days };
+    }
   });
+
+  // 2. Ay dönümleri — her ayın başlangıç günü
+  if (AY_DONUMU_AKTIF) {
+    const gunNo = baslangic.getDate();
+    for (let delta = 0; delta <= 1; delta++) {
+      const hedefAy = new Date(now.getFullYear(), now.getMonth() + delta, gunNo);
+      if (hedefAy <= baslangic) continue;
+      // Yıl dönümü gününü atla (zaten listede)
+      if (hedefAy.getMonth() === baslangic.getMonth() &&
+          hedefAy.getDate()  === baslangic.getDate()) continue;
+      const days = gunFarki(hedefAy);
+      if (days < 0) continue;
+      if (days <= UYARI_ESIGI_GUN && days < minDays) {
+        const ayNo = (hedefAy.getFullYear() - baslangic.getFullYear()) * 12
+                   + (hedefAy.getMonth()    - baslangic.getMonth());
+        minDays = days;
+        nearest = { mesaj: ayDonumuMesaj(ayNo, days), days };
+      }
+    }
+  }
+
   return nearest;
 }
 
@@ -484,12 +552,11 @@ function tick() {
   document.getElementById("daysNum").textContent = diff.toplamGun.toLocaleString("tr-TR");
   buildLiveRow(diff);
 
-  // Özel gün
-  const sp = nearestSpecial();
+  // Özel gün / ay dönümü
+  const sp  = nearestSpecial();
   const bar = document.getElementById("specialBar");
-  if (sp && sp.days <= UYARI_ESIGI_GUN) {
-    document.getElementById("specialText").textContent =
-      `${sp.ad}'e son ${sp.days} gün!`;
+  if (sp) {
+    document.getElementById("specialText").textContent = sp.mesaj;
     bar.classList.add("visible");
   } else {
     bar.classList.remove("visible");
